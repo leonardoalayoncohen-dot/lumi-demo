@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Pruebe a Lumi, el asistente de WhatsApp para clínicas dentales: responde precios, toma citas y avisa urgencias.">
+<style>*,*::before,*::after{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0}[hidden]{display:none!important}</style>
+<title>Lumi · Asistente de WhatsApp para clínicas dentales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a sales demo. Left: the pitch + the patient's phone. Right: what reception receives. Stacks on phones. */
+:root{
+  --bg:#EEF4F3; --surface:#FFFFFF; --ink:#12302E; --muted:#5B7372; --line:#D3E0DE;
+  --accent:#0E7C7B; --accent-ink:#FFFFFF; --bubble-me:#D3EEE9; --bubble-bot:#FFFFFF;
+  --chat-bg:#E4ECEA; --alert:#B4540A; --alert-bg:#FFF1E2; --urgent:#B42318; --urgent-bg:#FDECEA;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1B1A; --surface:#132625; --ink:#E3EFED; --muted:#93AAA8; --line:#24403E;
+  --accent:#3DB8B3; --accent-ink:#06201F; --bubble-me:#1B4844; --bubble-bot:#17302E;
+  --chat-bg:#0F2120; --alert:#F0A35E; --alert-bg:#2E2112; --urgent:#F28B82; --urgent-bg:#33191A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1B1A; --surface:#132625; --ink:#E3EFED; --muted:#93AAA8; --line:#24403E;
+  --accent:#3DB8B3; --accent-ink:#06201F; --bubble-me:#1B4844; --bubble-bot:#17302E;
+  --chat-bg:#0F2120; --alert:#F0A35E; --alert-bg:#2E2112; --urgent:#F28B82; --urgent-bg:#33191A; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 40px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:28px;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,4.2vw,40px);line-height:1.08;letter-spacing:-.01em;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:700;font-size:20px;margin:0}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);max-width:56ch;margin:0}
+.intro{display:grid;gap:12px;margin-bottom:20px}
+.label{display:block;margin-bottom:8px}
+
+/* phone */
+.phone{background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;height:min(640px,78vh);min-height:460px;box-shadow:0 18px 40px -24px rgba(10,40,38,.35)}
+.top{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;background:var(--accent);color:var(--accent-ink)}
+.top .who{flex:1;min-width:0}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--accent-ink);color:var(--accent);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:15px;flex:none}
+.top b{display:block;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top small{opacity:.85;font-size:12.5px}
+#reiniciar{flex:none;border:1px solid currentColor;background:transparent;color:var(--accent-ink);border-radius:99px;padding:5px 11px;font:500 12.5px var(--body);cursor:pointer;opacity:.9}
+#reiniciar:hover{opacity:1}
+.chat{flex:1;overflow-y:auto;background:var(--chat-bg);padding:16px 12px;display:flex;flex-direction:column;gap:6px}
+.msg{max-width:82%;padding:8px 11px 6px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;line-height:1.42}
+.msg time{display:block;text-align:right;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:2px}
+.bot{align-self:flex-start;background:var(--bubble-bot);border-top-left-radius:4px}
+.me{align-self:flex-end;background:var(--bubble-me);border-top-right-radius:4px}
+.sys{align-self:center;text-align:center;font-size:12px;color:var(--muted);background:var(--surface);padding:3px 10px;border-radius:99px;margin:4px 0}
+.typing{align-self:flex-start;background:var(--bubble-bot);border-radius:12px;padding:10px 14px;display:flex;gap:4px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.3}30%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.typing i{animation:none}}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 0;background:var(--surface);scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:6px 12px;font:500 13px var(--body);cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip:disabled{opacity:.5;cursor:default}
+form{display:flex;gap:8px;padding:10px 12px 12px;background:var(--surface)}
+#entrada{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:10px 14px;font:16px var(--body)}
+#entrada:focus{outline:2px solid var(--accent);outline-offset:1px}
+#enviar{border:0;background:var(--accent);color:var(--accent-ink);border-radius:99px;padding:0 18px;font:600 14px var(--body);cursor:pointer}
+#enviar:disabled{opacity:.5;cursor:default}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.modo{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+
+/* reception */
+.recep{display:grid;gap:14px}
+.recep .lede{font-size:14px}
+.avisos{display:grid;gap:10px}
+.vacio{border:1px dashed var(--line);border-radius:14px;padding:18px;color:var(--muted);font-size:14px}
+.aviso{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--alert);border-radius:12px;padding:12px 14px;display:grid;gap:8px;animation:in .35s ease-out}
+.aviso.urg{border-left-color:var(--urgent)}
+@keyframes in{from{transform:translateY(6px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.aviso{animation:none}}
+.tag{justify-self:start;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--alert-bg);color:var(--alert)}
+.urg .tag{background:var(--urgent-bg);color:var(--urgent)}
+.aviso dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0;font-size:14px}
+.aviso dt{color:var(--muted)}.aviso dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.pie{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.pie time{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.pie span{font-size:12.5px;font-weight:600;color:var(--accent);border:1px solid var(--line);border-radius:99px;padding:3px 10px}
+.hace{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.hace ul{margin:8px 0 0;padding-left:18px;display:grid;gap:4px;font-size:14px}
+.nota{font-size:12.5px;color:var(--muted);margin:0}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <section>
+    <div class="intro">
+      <span class="eyebrow">Demo · asistente de WhatsApp para clínicas dentales</span>
+      <h1>Su recepción contestando a las 11 de la noche, sin que nadie esté despierto.</h1>
+      <p class="lede">Escríbale como si fuera un paciente: pregunte precios, pida una cita o diga que le duele una muela. A la derecha ve lo que le llega a la recepción.</p>
+    </div>
+
+    <span class="eyebrow label">WhatsApp del paciente</span>
+    <div class="phone" aria-label="Chat de prueba con Lumi">
+      <div class="top">
+        <div class="avatar" aria-hidden="true">SA</div>
+        <div class="who"><b>Clínica Dental Sonrisa Ávila</b><small>Lumi · asistente virtual</small></div>
+        <button id="reiniciar" type="button">Reiniciar</button>
+      </div>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <div class="chips" id="chips"></div>
+      <form id="form">
+        <input id="entrada" autocomplete="off" placeholder="Escriba un mensaje" aria-label="Mensaje" maxlength="500">
+        <button id="enviar" type="submit">Enviar</button>
+      </form>
+    </div>
+    <p class="modo" id="modo">Clínica ficticia con precios de ejemplo.</p>
+  </section>
+
+  <aside class="recep">
+    <div>
+      <span class="eyebrow">WhatsApp de la recepción</span>
+      <h2>Lo que recibe la clínica</h2>
+    </div>
+    <p class="lede">Cada cita solicitada y cada urgencia llega al teléfono de la recepcionista, con un enlace para escribirle al paciente.</p>
+    <div class="avisos" id="avisos"></div>
+    <div class="hace">
+      <h2>Qué hace Lumi</h2>
+      <ul>
+        <li>Responde precios, horario, dirección y formas de pago al instante.</li>
+        <li>Toma solicitudes de cita y se las pasa a la recepción para confirmar.</li>
+        <li>Sabe que las panorámicas y cefalometrías son por orden de llegada.</li>
+        <li>Ante dolor fuerte o hinchazón, avisa a una persona y deja de responder.</li>
+        <li>Nunca diagnostica ni receta.</li>
+      </ul>
+    </div>
+    <p class="nota">Funciona con la API oficial de WhatsApp y se configura con los servicios, precios y horario de cada clínica.</p>
+  </aside>
+</div>
+
+<script>
+const CLINICA = {
+  nombre:"Clínica Dental Sonrisa Ávila", asistente:"Lumi", ciudad:"Caracas",
+  direccion:"Av. Principal de Los Palos Grandes, Edif. Torre Ávila, piso 3, consultorio 3-B, frente a la Plaza Los Palos Grandes. Hay estacionamiento pagado en el sótano.",
+  horario:"Lunes a viernes de 8:00 a.m. a 6:00 p.m. Sábados de 8:00 a.m. a 12:00 p.m. Domingos y feriados cerrado.",
+  pagos:"Dólares en efectivo, Zelle, pago móvil o transferencia en bolívares a tasa BCV del día, y punto de venta (débito y crédito).",
+  seguros:"Trabajamos con reembolso: le damos factura e informe para que lo presente a su seguro. No tenemos convenio directo.",
+  ninos:"Atendemos niños desde los 3 años con odontopediatra los martes y jueves.",
+  cuotas:"Para ortodoncia y tratamientos mayores a $300 se puede pagar en cuotas. Se conversa en la consulta.",
+  urgencias:"En horario, venir directamente y se atiende lo antes posible. Fuera de horario, si hay hinchazón que dificulta respirar o tragar, fiebre alta o sangrado que no para, ir a una emergencia médica."
+};
+// [clave, nombre, precio, detalle, necesitaCita, palabras clave]
+const SERVICIOS = [
+  ["evaluacion","Consulta de evaluación","$25","Dura unos 30 minutos e incluye revisión completa y plan de tratamiento. Si el tratamiento se hace ese mismo día, la consulta se descuenta.",true,["consulta","evaluacion","revision","chequeo","valoracion"]],
+  ["limpieza","Limpieza dental","$40","Dura unos 45 minutos.",true,["limpieza","profilaxis"]],
+  ["panoramica","Radiografía panorámica","$30","No necesita cita: se atiende por orden de llegada en nuestro horario y se entrega digital el mismo día. Si viene con orden de otro odontólogo, tráigala.",false,["panoram"]],
+  ["periapical","Radiografía periapical","$10","No necesita cita, se hace por orden de llegada.",false,["periapical"]],
+  ["cefalometria","Cefalometría","$35","No necesita cita, se hace por orden de llegada. Normalmente la pide el ortodoncista.",false,["cefalo"]],
+  ["cordal","Extracción de cordal (muela del juicio)","desde $120","Requiere evaluación y una panorámica previa.",true,["cordal","juicio"]],
+  ["extraccion","Extracción simple","desde $50","El precio final se confirma en la consulta.",true,["extrac","sacar"]],
+  ["endodoncia","Endodoncia (tratamiento de conducto)","desde $180","Se hace en 1 o 2 sesiones.",true,["endodon","conducto","nervio"]],
+  ["ortodoncia","Ortodoncia (brackets)","inicial desde $350 y controles mensuales de $40","Primero se hace una consulta de ortodoncia con panorámica y cefalometría.",true,["ortodon","bracket","frenill","aparato"]],
+  ["blanqueamiento","Blanqueamiento dental","$150","Dura alrededor de 1 hora y 30 minutos.",true,["blanque","blanco","blancos"]],
+  ["resina","Resina (empaste)","desde $45 por pieza","El precio final depende del tamaño de la caries y se confirma en la consulta.",true,["resina","empaste","caries","calza"]],
+];
+
+const $ = id => document.getElementById(id);
+const chat=$("chat"), form=$("form"), entrada=$("entrada"), enviar=$("enviar");
+let turnos=[], citas=[], pausado=false, sample=null, ocupado=false, paso=null, borrador={}, generacion=0;
+const hora = () => new Date().toLocaleTimeString("es-VE",{hour:"numeric",minute:"2-digit"});
+const MODO_IA="Respuestas en vivo con IA. Clínica ficticia con precios de ejemplo.";
+const MODO_GUIADO="Demostración con una clínica ficticia y precios de ejemplo.";
+const SALUDO=`¡Hola! Soy ${CLINICA.asistente}, asistente virtual de ${CLINICA.nombre}. Le puedo ayudar con precios, citas, horarios y más. ¿En qué le ayudo?`;
+
+/* ---------- interfaz ---------- */
+function burbuja(texto, quien){
+  const d=document.createElement("div"); d.className="msg "+quien; d.textContent=texto;
+  const t=document.createElement("time"); t.textContent=hora(); d.append(t);
+  chat.append(d); chat.scrollTop=chat.scrollHeight;
+}
+function sistema(texto){const d=document.createElement("div");d.className="sys";d.textContent=texto;chat.append(d);chat.scrollTop=chat.scrollHeight;}
+function escribiendo(on){
+  let el=$("typing");
+  if(on&&!el){el=document.createElement("div");el.id="typing";el.className="typing";el.setAttribute("aria-label","Escribiendo");el.innerHTML="<i></i><i></i><i></i>";chat.append(el);chat.scrollTop=chat.scrollHeight;}
+  if(!on&&el)el.remove();
+}
+function vacio(){ $("avisos").innerHTML='<div class="vacio" id="vacio">Todavía no hay avisos. Pida una cita o cuente una urgencia en el chat y aparece aquí.</div>'; }
+function aviso(tipo, filas){
+  $("vacio")?.remove();
+  const a=document.createElement("article"); a.className="aviso"+(tipo==="urg"?" urg":"");
+  const tag=document.createElement("span"); tag.className="tag";
+  tag.textContent = tipo==="cita" ? "Nueva solicitud de cita" : tipo==="urg" ? "Urgencia · atender ya" : "Paciente pide una persona";
+  const dl=document.createElement("dl");
+  for(const [k,v] of filas){ if(!v) continue; const dt=document.createElement("dt");dt.textContent=k; const dd=document.createElement("dd");dd.textContent=v; dl.append(dt,dd); }
+  const pie=document.createElement("div"); pie.className="pie";
+  const t=document.createElement("time"); t.textContent="Recibido a las "+hora();
+  const b=document.createElement("span"); b.textContent="Escribirle al paciente →";
+  pie.append(t,b); a.append(tag,dl,pie); $("avisos").prepend(a);
+}
+function bloquear(on){ ocupado=on; enviar.disabled=on; document.querySelectorAll(".chip").forEach(c=>c.disabled=on); }
+
+/* ---------- Modo IA (Claude) ---------- */
+function reglas(){
+  const serv=SERVICIOS.map(s=>`- ${s[1]}: ${s[2]}. ${s[3]}${s[4]?"":" (sin cita)"}`).join("\n");
+  const previas=citas.length?`\nSolicitudes de cita ya registradas en este chat (no las repitas): ${citas.map(c=>`${c.servicio}, ${c.cuando}`).join("; ")}`:"";
+  const ahora=new Date().toLocaleString("es-VE",{weekday:"long",day:"numeric",month:"long",hour:"numeric",minute:"2-digit"});
+  return `Eres ${CLINICA.asistente}, asistente virtual por WhatsApp de ${CLINICA.nombre}, una clínica dental en ${CLINICA.ciudad}, Venezuela.
+Fecha y hora actual: ${ahora}
+Ya saludaste al paciente con este mensaje: "${SALUDO}". No te vuelvas a presentar.
+
+Cómo escribes: con la amabilidad y eficiencia de una buena recepción. Tu nombre no es ni de hombre ni de mujer: nunca uses palabras con género para hablar de ti (di "con gusto" en vez de "encantada" o "encantado", "no le entendí bien" en vez de "no estoy segura"). Mensajes cortos (1 a 4 frases), español venezolano natural, trato de usted, máximo un emoji y no en todos los mensajes, sin markdown ni asteriscos.
+
+Reglas:
+- Usa solo los datos de abajo. Si algo no está, dilo con honestidad y ofrece pasar con la recepción. Nunca inventes precios.
+- Nunca des diagnósticos ni recomiendes medicamentos. Si describen una molestia leve, muestra empatía y sugiere la consulta de evaluación.
+- Urgencias (dolor muy fuerte, hinchazón, sangrado que no para, fiebre, golpe, diente partido): da la indicación de urgencias y usa la acción "humano" con urgente true.
+- Para una cita necesitas nombre y apellido, servicio o motivo, y día y hora preferidos. Pide lo que falte de a poco, no todo junto. Revisa que el día y la hora estén dentro del horario; si no, propón otra opción. Cuando tengas todo, usa la acción "cita" y aclara que es una solicitud y que la recepción le confirmará la hora por este mismo chat. Nunca digas que la cita ya está confirmada.
+- Panorámica, periapical y cefalometría no necesitan cita.
+- Si el paciente pide hablar con una persona, usa la acción "humano" con urgente false.
+- Si preguntan si eres un robot, di con sinceridad que eres un asistente virtual de la clínica y que pueden hablar con una persona si lo desean.
+- Si el tema no tiene que ver con la clínica, redirige con amabilidad.
+
+Datos de la clínica:
+Dirección: ${CLINICA.direccion}
+Horario: ${CLINICA.horario}
+Servicios y precios:
+${serv}
+Formas de pago: ${CLINICA.pagos}
+Seguros: ${CLINICA.seguros}
+Niños: ${CLINICA.ninos}
+Cuotas: ${CLINICA.cuotas}
+Urgencias: ${CLINICA.urgencias}${previas}
+
+Responde SOLO con un objeto JSON, sin texto antes ni después, con esta forma:
+{"respuesta": "mensaje para el paciente", "accion": null}
+Cuando corresponda, "accion" puede ser:
+{"tipo": "cita", "nombre": "...", "servicio": "...", "fecha": "...", "hora": "...", "notas": "..."}
+{"tipo": "humano", "motivo": "...", "urgente": true}`;
+}
+
+async function responderIA(){
+  const entradaIA=[{role:"user",content:reglas()},...turnos.slice(-20)];
+  const r = await sample.json(entradaIA,{modelTier:"quick",cache:false});
+  let resp = typeof r?.respuesta==="string" ? r.respuesta.replace(/\*\*/g,"").trim() : "";
+  if(!resp) throw {code:"invalid_json"};
+  const acc = r?.accion;
+  if(acc&&acc.tipo==="cita"&&acc.nombre){
+    const cuando=[acc.fecha,acc.hora].filter(Boolean).join(", ");
+    citas.push({servicio:String(acc.servicio||""),cuando});
+    aviso("cita",[["Paciente",String(acc.nombre)],["Servicio",String(acc.servicio||"")],["Prefiere",cuando],["Notas",acc.notas?String(acc.notas):""]]);
+  } else if(acc&&acc.tipo==="humano"){
+    aviso(acc.urgente?"urg":"humano",[["Motivo",String(acc.motivo||"El paciente necesita atención")]]);
+    pausado=true;
+  }
+  return resp;
+}
+
+/* ---------- Modo guiado (sin IA) ---------- */
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[¿¡]/g,"").trim();
+const tiene = (t,...ps) => ps.some(p=>t.includes(p));
+const servicioDe = t => SERVICIOS.find(s=>tiene(t,...s[5]));
+const esSi = t => /^(si|sip|dale|ok|okay|claro|perfecto|por favor|bueno|va|de una|me parece|si por favor)\b/.test(t);
+const esNo = t => /^(no|nop|todavia no|despues|luego|mas tarde)\b/.test(t);
+const preguntaPrecio = t => tiene(t,"precio","cuesta","cuanto","vale","costo","tarifa","cobran");
+const quiereCita = t => tiene(t,"cita","agend","reserv","apartar","turno","quiero","quisiera","necesito","me gustaria","quiero ir","puedo ir");
+const DIAS=["lunes","martes","miercoles","jueves","viernes","sabado","domingo","manana","hoy","pasado","semana","proximo","proxima"];
+
+function pedirNombre(s){
+  borrador={servicio:s[1]}; paso="nombre";
+  return `Con gusto le ayudo con la cita para ${s[1].toLowerCase()} (${s[2]}). ¿Me indica su nombre y apellido?`;
+}
+function infoServicio(s){
+  const base=`${s[1]}: ${s[2]}. ${s[3]}`;
+  if(!s[4]) return base;
+  paso="ofrecer"; borrador={servicio:s[1]};
+  return base+" ¿Desea que le solicite una cita?";
+}
+
+function rutear(t){
+  // 1. urgencia real
+  if(tiene(t,"hincha","inflama","sangr","fiebre","golpe","insoportable","urgen","emergencia","se me partio","se me rompio","se me cayo","no aguanto","mucho dolor","duele mucho","duele muchisimo","dolor fuerte","muy fuerte","no puedo dormir")){
+    aviso("urg",[["Motivo","Dolor fuerte o inflamación. Paciente pide atención."],["Mensaje",lastUser()]]); pausado=true; paso=null;
+    return "Lamento mucho que esté así. Si está dentro de nuestro horario, venga directamente y le atendemos lo antes posible. Si tiene hinchazón que le dificulte respirar o tragar, o fiebre alta, acuda a una emergencia. Ya le avisé a la recepción y una persona le escribe ahora mismo.";
+  }
+  // 2. robot / persona
+  if(tiene(t,"robot","eres un bot","eres bot","eres real","eres una persona","eres humana","inteligencia artificial","eres una ia","chatbot")){
+    return `Soy ${CLINICA.asistente}, asistente virtual de la clínica. Puedo responder sus dudas y tomar su solicitud de cita, y si prefiere hablar con una persona, le aviso a la recepción.`;
+  }
+  if(tiene(t,"hablar con una persona","hablar con alguien","hablar con la recepcion","hablar con la secretaria","humano","asesor","operador","atencion personal","me pueden llamar","llamenme")){
+    aviso("humano",[["Motivo","El paciente pidió hablar con una persona"],["Mensaje",lastUser()]]); pausado=true; paso=null;
+    return "Claro que sí. Ya le avisé a la recepción y una persona le escribe por aquí en breve.";
+  }
+  // 3. molestia leve
+  if(tiene(t,"duel","dolor","molest","sensib","me lastima")){
+    paso="ofrecer"; borrador={servicio:"Consulta de evaluación"};
+    return "Lamento la molestia. Lo ideal es una consulta de evaluación ($25) para que la doctora le revise. ¿Desea que le solicite una cita? Si el dolor es muy fuerte o tiene hinchazón, dígamelo y le aviso a la recepción de inmediato.";
+  }
+  // 4. servicios
+  const s=servicioDe(t);
+  if(s){
+    if(!s[4]) return `${s[1]}: ${s[2]}. ${s[3]}`;
+    if(preguntaPrecio(t)||t.includes("?")||!quiereCita(t)) return infoServicio(s);
+    return pedirNombre(s);
+  }
+  if(tiene(t,"cita","agend","reserv","apartar","turno")){
+    paso="servicio";
+    return "Con gusto le ayudo. ¿Para qué sería la cita? Por ejemplo: consulta de evaluación, limpieza, ortodoncia o blanqueamiento.";
+  }
+  // 5. información general
+  if(tiene(t,"cuota","financ","plan de pago","planes de pago","credito")) return CLINICA.cuotas;
+  if(preguntaPrecio(t)) return "Algunos precios: consulta de evaluación $25, limpieza $40, radiografía panorámica $30, resinas desde $45 y blanqueamiento $150. ¿Sobre cuál servicio quiere más detalle?";
+  if(tiene(t,"horario","a que hora","que hora","abren","cierran","abierto","atienden hoy","sabado","domingo","feriado")) return "Atendemos de lunes a viernes de 8:00 a.m. a 6:00 p.m. y los sábados de 8:00 a.m. a 12:00 p.m. Domingos y feriados estamos cerrados.";
+  if(tiene(t,"donde","direccion","ubica","llegar","estacionamiento","queda","mapa")) return "Estamos en la "+CLINICA.direccion;
+  if(tiene(t,"pago","pagar","zelle","bolivar","efectivo","punto de venta","tarjeta","dolar","divisa","transferencia","binance","paypal")) return "Aceptamos dólares en efectivo, Zelle, pago móvil o transferencia en bolívares a tasa BCV del día, y punto de venta (débito y crédito).";
+  if(tiene(t,"seguro","poliza")) return CLINICA.seguros;
+  if(tiene(t,"nino","nina","hijo","hija","pediatr","bebe")) return "Sí, "+CLINICA.ninos.charAt(0).toLowerCase()+CLINICA.ninos.slice(1);
+  if(tiene(t,"gracias","muy amable","chevere","excelente")) return "¡Con mucho gusto! Si necesita algo más, aquí estoy. 😊";
+  if(tiene(t,"hola","buenas","buen dia","buenos dias","buenas tardes","buenas noches","saludos")) return "¡Hola! ¿En qué le puedo ayudar? Puedo darle precios, horario, dirección o tomar su solicitud de cita.";
+  return "Disculpe, no le entendí bien. Le puedo ayudar con precios, citas, horario, dirección y formas de pago. Si prefiere, le paso con una persona de la recepción.";
+}
+function lastUser(){ for(let i=turnos.length-1;i>=0;i--) if(turnos[i].role==="user") return turnos[i].content; return ""; }
+
+function responderGuiado(t0){
+  const t=norm(t0);
+  if(paso==="ofrecer"){
+    if(esSi(t)){ paso="nombre"; return "Perfecto. ¿Me indica su nombre y apellido?"; }
+    paso=null;
+    if(esNo(t)) return "Entendido. Si necesita algo más, aquí estoy.";
+  }
+  if(paso==="servicio"){
+    const s=servicioDe(t);
+    if(s){ paso=null; return s[4]?pedirNombre(s):`${s[1]} no necesita cita. ${s[3]} El precio es ${s[2]}.`; }
+    if(!t.includes("?") && t.split(/\s+/).length<=6){ return pedirNombre(SERVICIOS[0]); }
+    paso=null;
+  }
+  if(paso==="nombre"){
+    const palabras=t0.trim().split(/\s+/);
+    const pareceNombre=!/[?\d@]/.test(t0) && palabras.length>=1 && palabras.length<=5 && !servicioDe(t) && !preguntaPrecio(t) && !tiene(t,"duel","dolor","hincha","hora","donde","pago","zelle","seguro","robot","persona");
+    if(pareceNombre){
+      borrador.nombre=t0.trim().replace(/^(soy|me llamo|mi nombre es)\s+/i,"").replace(/^\w/,c=>c.toUpperCase()); paso="dia";
+      return `Gracias, ${borrador.nombre.split(" ")[0]}. ¿Qué día y a qué hora le queda mejor? Atendemos de lunes a viernes de 8:00 a.m. a 6:00 p.m., y los sábados hasta el mediodía.`;
+    }
+    paso=null; const r=rutear(t); if(pausado||paso) return r;
+    paso="nombre"; return r+"\n\nY para su solicitud de cita, ¿me indica su nombre y apellido?";
+  }
+  if(paso==="dia"){
+    const tieneDia=tiene(t,...DIAS)||/\d/.test(t)||tiene(t,"tarde","temprano","mediodia");
+    if(!tieneDia){
+      paso=null; const r=rutear(t); if(pausado||paso) return r;
+      paso="dia"; return (t.includes("?")?r+"\n\n":"")+"¿Qué día y a qué hora le gustaría venir? Por ejemplo: martes en la mañana.";
+    }
+    if(tiene(t,"domingo")) return "Los domingos estamos cerrados. ¿Le sirve otro día? Atendemos de lunes a viernes de 8:00 a.m. a 6:00 p.m., y los sábados hasta el mediodía.";
+    if(tiene(t,"sabado")&&(tiene(t,"tarde","noche")||/\b(1[2-9]|[1-9])\s*(pm|p\.m|de la tarde)/.test(t))) return "Los sábados atendemos solo hasta las 12:00 p.m. ¿Le queda bien el sábado en la mañana u otro día de la semana?";
+    if(tiene(t,"noche")||/\b([7-9]|1[01])\s*(pm|p\.m|de la noche)/.test(t)) return "Atendemos hasta las 6:00 p.m. ¿Le sirve un poco más temprano, por ejemplo a las 5:00 p.m.?";
+    borrador.cuando=t0.trim(); paso=null;
+    aviso("cita",[["Paciente",borrador.nombre],["Servicio",borrador.servicio],["Prefiere",borrador.cuando]]);
+    citas.push({...borrador}); const n=borrador.nombre.split(" ")[0]; borrador={};
+    return `Listo, ${n}. Anoté su solicitud con su preferencia (${citas.at(-1).cuando}). La recepción le confirma la hora por este chat en breve. 😊`;
+  }
+  return rutear(t);
+}
+
+/* ---------- envío ---------- */
+async function enviarMensaje(texto){
+  texto=(texto||"").trim(); if(!texto||ocupado) return false;
+  burbuja(texto,"me"); turnos.push({role:"user",content:texto});
+  if(pausado){ sistema("La recepción está atendiendo este chat. Toque Reiniciar para probar de nuevo."); return true; }
+  const mia=generacion; bloquear(true); escribiendo(true);
+  let resp;
+  try{
+    if(sample){ resp=await responderIA(); }
+    else { await new Promise(r=>setTimeout(r,700)); resp=responderGuiado(texto); }
+  }catch(e){
+    const code=e&&e.code;
+    if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed","session_expired"].includes(code)){
+      sample=null; $("modo").textContent=MODO_GUIADO;
+    }
+    if(code==="rate_limited") resp="Disculpe, estoy recibiendo muchos mensajes en este momento. ¿Me lo repite en un minuto?";
+    else resp=responderGuiado(texto);
+  }
+  if(mia!==generacion) return true; // se reinició mientras respondía
+  escribiendo(false); burbuja(resp,"bot"); turnos.push({role:"assistant",content:resp});
+  if(pausado) sistema("Chat pasado a la recepción. Lumi deja de responder aquí.");
+  bloquear(false); entrada.focus({preventScroll:true});
+  return true;
+}
+form.addEventListener("submit",e=>{
+  e.preventDefault(); if(ocupado) return;
+  const v=entrada.value; if(!v.trim()) return;
+  entrada.value=""; enviarMensaje(v);
+});
+
+function reiniciar(){
+  generacion++; turnos=[]; citas=[]; pausado=false; paso=null; borrador={};
+  chat.innerHTML=""; escribiendo(false); vacio(); bloquear(false); entrada.value="";
+  burbuja(SALUDO,"bot");
+}
+$("reiniciar").addEventListener("click",reiniciar);
+
+const SUGERENCIAS=["¿Cuánto cuesta la panorámica?","Quiero una cita para limpieza","¿Aceptan Zelle?","Me duele mucho una muela","¿Dónde quedan?","¿Eres un robot?"];
+for(const s of SUGERENCIAS){const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=s;b.onclick=()=>enviarMensaje(s);$("chips").append(b);}
+
+reiniciar();
+
+// Activar IA si este visor la ofrece
+(async()=>{
+  try{
+    const s = window.claude ? await window.claude.use("sample") : null;
+    if(s){ sample=s; $("modo").textContent=MODO_IA; }
+    else { $("modo").textContent=MODO_GUIADO; }
+  }catch{ $("modo").textContent=MODO_GUIADO; }
+})();
+</script>
+
+</body>
+</html>
